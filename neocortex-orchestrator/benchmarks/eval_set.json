@@ -1,0 +1,52 @@
+[
+  {
+    "id": "eiffel-tower",
+    "query": "When was the Eiffel Tower completed and where is it located?",
+    "facts": ["The Eiffel Tower was completed in 1889 and is located in Paris, France."]
+  },
+  {
+    "id": "mount-everest",
+    "query": "What is the height of Mount Everest?",
+    "facts": ["Mount Everest is approximately 8,849 meters (29,032 feet) tall."]
+  },
+  {
+    "id": "water-boiling",
+    "query": "At what temperature does water boil at sea level?",
+    "facts": ["Water boils at 100 degrees Celsius (212 degrees Fahrenheit) at sea level."]
+  },
+  {
+    "id": "python-creator",
+    "query": "Who created the Python programming language?",
+    "facts": ["The Python programming language was created by Guido van Rossum, first released in 1991."]
+  },
+  {
+    "id": "great-wall",
+    "query": "What was the primary purpose of the Great Wall of China?",
+    "facts": ["The Great Wall of China was built primarily to protect Chinese states from invasions and raids."]
+  },
+  {
+    "id": "speed-of-light",
+    "query": "What is the speed of light in a vacuum?",
+    "facts": ["The speed of light in a vacuum is approximately 299,792 kilometers per second."]
+  },
+  {
+    "id": "human-bones",
+    "query": "How many bones are in the adult human body?",
+    "facts": ["An adult human body has 206 bones."]
+  },
+  {
+    "id": "amazon-river",
+    "query": "Which river is generally considered the longest in the world?",
+    "facts": ["The Nile and the Amazon are the two rivers most often cited as the longest in the world, with measurement methodology affecting the ranking."]
+  },
+  {
+    "id": "moon-landing",
+    "query": "In what year did humans first land on the Moon?",
+    "facts": ["Humans first landed on the Moon in 1969, during the Apollo 11 mission."]
+  },
+  {
+    "id": "great-barrier-reef",
+    "query": "What is the Great Barrier Reef and where is it located?",
+    "facts": ["The Great Barrier Reef is the world's largest coral reef system, located off the coast of Queensland, Australia."]
+  }
+]

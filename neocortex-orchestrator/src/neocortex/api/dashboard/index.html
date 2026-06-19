@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>NeoCortex Orchestrator — Observability Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --panel: #121826;
+    --border: #232c3d;
+    --text: #e6e9ef;
+    --muted: #8893a6;
+    --accent: #5eead4;
+    --warn: #f59e0b;
+    --bad: #f87171;
+    --good: #34d399;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  #status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); display: inline-block; margin-right: 8px; }
+  #status-dot.live { background: var(--good); }
+  .layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; padding: 16px 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 12px 0; }
+
+  .pipeline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .node-box {
+    flex: 1; text-align: center; padding: 14px 6px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 12px; transition: all 0.2s ease; background: #0d121c;
+  }
+  .node-box.pulse { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(94,234,212,0.25); }
+  .arrow { color: var(--muted); padding: 0 6px; font-size: 14px; }
+
+  .stat-row { display: flex; gap: 12px; margin-top: 12px; }
+  .stat { flex: 1; background: #0d121c; border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; }
+  .stat .label { font-size: 11px; color: var(--muted); }
+  .stat .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+  .badge.accepted, .badge.node_end { background: rgba(52,211,153,0.15); color: var(--good); }
+  .badge.failed { background: rgba(248,113,113,0.15); color: var(--bad); }
+  .badge.correcting, .badge.node_start { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+  #log-wrap { max-height: 320px; overflow-y: auto; }
+  .query-form { display: flex; gap: 8px; margin-top: 12px; }
+  .query-form input { flex: 1; background: #0d121c; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 6px; }
+  .query-form button { background: var(--accent); border: none; color: #06231c; font-weight: 600; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+  .anomaly-tag { display: inline-block; background: rgba(248,113,113,0.15); color: var(--bad); border-radius: 4px; padding: 1px 6px; margin: 2px; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NeoCortex Orchestrator · Observability</h1>
+  <div><span id="status-dot"></span><span id="status-text" style="font-size:12px;color:var(--muted)">connecting…</span></div>
+</header>
+
+<div class="layout">
+  <div class="panel">
+    <h2>Agent Call Graph</h2>
+    <div class="pipeline">
+      <div class="node-box" id="node-executor">Executor</div>
+      <div class="arrow">→</div>
+      <div class="node-box" id="node-auditor">Auditor</div>
+      <div class="arrow">→</div>
+      <div class="node-box" id="node-supervisor">Supervisor</div>
+      <div class="arrow">→</div>
+      <div class="node-box" id="node-corrective">Corrective</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="label">Sessions</div><div class="value" id="stat-sessions">0</div></div>
+      <div class="stat"><div class="label">Total Tokens</div><div class="value" id="stat-tokens">0</div></div>
+      <div class="stat"><div class="label">Anomalies</div><div class="value" id="stat-anomalies">0</div></div>
+    </div>
+
+    <h2 style="margin-top:18px">Confidence / Drift Over Time</h2>
+    <canvas id="confidence-chart" height="140"></canvas>
+
+    <div class="query-form">
+      <input id="query-input" placeholder="Type a query to run a session…" />
+      <button onclick="runQuery()">Run</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Live Event Log</h2>
+    <div id="log-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Node</th><th>Event</th><th>Conf.</th><th>Drift</th><th>Anomalies</th></tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+let sessionCount = 0, tokenCount = 0, anomalyCount = 0;
+let chartLabels = [], confSeries = [], driftSeries = [];
+
+const ctx = document.getElementById('confidence-chart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: chartLabels,
+    datasets: [
+      { label: 'Confidence', data: confSeries, borderColor: '#5eead4', tension: 0.3, pointRadius: 0 },
+      { label: 'Drift', data: driftSeries, borderColor: '#f87171', tension: 0.3, pointRadius: 0 },
+    ]
+  },
+  options: {
+    animation: false,
+    scales: { y: { min: 0, max: 1, ticks: { color: '#8893a6' } }, x: { ticks: { color: '#8893a6' } } },
+    plugins: { legend: { labels: { color: '#e6e9ef' } } }
+  }
+});
+
+function pulse(node) {
+  const el = document.getElementById('node-' + node);
+  if (!el) return;
+  el.classList.add('pulse');
+  setTimeout(() => el.classList.remove('pulse'), 600);
+}
+
+function addLogRow(evt) {
+  const tbody = document.getElementById('log-body');
+  const tr = document.createElement('tr');
+  const time = new Date(evt.timestamp * 1000).toLocaleTimeString();
+  const anomalies = (evt.payload && evt.payload.anomalies) || [];
+  tr.innerHTML = `
+    <td>${time}</td>
+    <td>${evt.node}</td>
+    <td><span class="badge ${evt.event_type}">${evt.event_type}</span></td>
+    <td>${evt.payload && evt.payload.confidence_score != null ? evt.payload.confidence_score.toFixed(2) : '—'}</td>
+    <td>${evt.payload && evt.payload.drift_score != null ? evt.payload.drift_score.toFixed(2) : '—'}</td>
+    <td>${anomalies.map(a => `<span class="anomaly-tag">${a}</span>`).join('')}</td>
+  `;
+  tbody.prepend(tr);
+  while (tbody.rows.length > 200) tbody.deleteRow(-1);
+}
+
+function handleEvent(evt) {
+  pulse(evt.node);
+  addLogRow(evt);
+
+  if (evt.event_type === 'session_complete') {
+    sessionCount += 1;
+    document.getElementById('stat-sessions').textContent = sessionCount;
+  }
+  if (evt.payload) {
+    if (evt.payload.token_usage) {
+      const tu = evt.payload.token_usage;
+      tokenCount = (tu.prompt_tokens || 0) + (tu.completion_tokens || 0);
+      document.getElementById('stat-tokens').textContent = tokenCount;
+    }
+    if (evt.payload.anomalies && evt.payload.anomalies.length) {
+      anomalyCount += evt.payload.anomalies.length;
+      document.getElementById('stat-anomalies').textContent = anomalyCount;
+    }
+    if (evt.payload.confidence_score != null) {
+      chartLabels.push('');
+      confSeries.push(evt.payload.confidence_score);
+      driftSeries.push(evt.payload.drift_score || 0);
+      if (chartLabels.length > 50) { chartLabels.shift(); confSeries.shift(); driftSeries.shift(); }
+      chart.update();
+    }
+  }
+}
+
+function connect() {
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${window.location.host}/ws/dashboard`);
+  ws.onopen = () => {
+    document.getElementById('status-dot').classList.add('live');
+    document.getElementById('status-text').textContent = 'live';
+  };
+  ws.onclose = () => {
+    document.getElementById('status-dot').classList.remove('live');
+    document.getElementById('status-text').textContent = 'disconnected — retrying…';
+    setTimeout(connect, 2000);
+  };
+  ws.onmessage = (msg) => {
+    try { handleEvent(JSON.parse(msg.data)); } catch (e) { console.error(e); }
+  };
+}
+
+async function runQuery() {
+  const input = document.getElementById('query-input');
+  const query = input.value.trim();
+  if (!query) return;
+  input.value = '';
+  await fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+}
+
+connect();
+</script>
+</body>
+</html>

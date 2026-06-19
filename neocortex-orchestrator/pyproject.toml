@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neocortex-orchestrator"
+version = "0.1.0"
+description = "Self-healing multi-agent LLM framework: 3-tier agent hierarchy (Executor/Auditor/Supervisor) with NLI-based factual auditing and semantic drift detection."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
